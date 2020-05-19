@@ -1,0 +1,7 @@
+- Streams don't flush at exit (unless fflush() is called)
+- fopen supports only "r", "w", and "a", that is:
+- Bufferd I/O doesn't support mixed read-write operations on the same file
+- Buffered I/O only works at block level; for console devices we really
+  need a line-level buffer, to reduce the need to call fflush() explicitly
+- malloc() and free() are implemented very crudely
+
