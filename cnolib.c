@@ -4,6 +4,10 @@
 
   C component of Kevin's tiny C library
 
+  Note that a few parts of this file are achitecture specific. For
+  example, gcc does not provide an implementation of integer
+  division for ARMv7, so we have to implement it here.
+
   cnolib.c
   
   Copyright (c)2020 Kevin Boone. Distributed uner the terms of the 
@@ -472,6 +476,69 @@ void reverse (char str[], int length)
 
 /*===========================================================================
 
+  abs
+
+===========================================================================*/
+#ifdef __arm__
+static long abs (long x)
+  {
+  return x > 0 ? x : -x;
+  }
+#endif
+
+/*===========================================================================
+
+  div
+
+  Note that the implementations of div and mod in this code are
+  only good enough to be able to implement the ltoa() function, which
+  is why they are defined as static. A serious application (lacking
+  a standard C library) would provide proper implementations, probably
+  in assembler. 
+
+  For the record, ARMv7 has hardware div and mod for 32-bit registers,
+  but that's not enough for a long int.
+
+===========================================================================*/
+static int div (long n, int base)
+  {
+  #ifdef __arm__
+
+  int sign = ((n < 0) ^ (base < 0)) ? -1 : 1;
+
+  long dividend = abs (n);
+  int divisor = abs (base);
+
+  int quotient = 0;
+  while (dividend >= divisor)
+    {
+    dividend -= divisor;
+    ++quotient;
+    }
+
+  return sign * quotient;
+
+  #else
+  return n / base;
+  #endif
+  }
+
+/*===========================================================================
+
+  mod 
+
+===========================================================================*/
+int mod (long n, int base)
+  {
+  #ifdef __arm__
+  return n - (base * div (n, base));
+  #else
+  return n % base;
+  #endif
+  }
+
+/*===========================================================================
+
   ltoa 
 
 ===========================================================================*/
@@ -495,9 +562,10 @@ char *ltoa (long n, char *str, int base)
   
   while (n != 0) 
     { 
-    int rem = n % base; 
+    //int rem = n % base; 
+    int rem = mod (n, base); 
     str[i++] = (rem > 9)? (rem-10) + 'a' : rem + '0'; 
-    n = n/base; 
+    n = div (n, base); 
     } 
   
   if (isNegative) 
@@ -549,7 +617,7 @@ static const size_t align_to = 16;
 ===========================================================================*/
 int brk (void *addr)
   {
-  int x = sys_brk ((unsigned long)addr);
+  int x = syscall (SYS_BRK, (unsigned long)addr);
   if ((unsigned long) x > (unsigned long)addr) return 0;
   return -1;
   }
@@ -561,8 +629,8 @@ int brk (void *addr)
 ===========================================================================*/
 void *sbrk (intptr_t increment)
   {
-  void *old = (void *) ((uintptr_t)sys_brk (0));
-  void *new = (void *) (uintptr_t)sys_brk ((uintptr_t)old + increment);
+  void *old = (void *) ((uintptr_t)syscall (SYS_BRK, 0));
+  void *new = (void *) (uintptr_t)syscall (SYS_BRK, (uintptr_t)old + increment);
   return (((uintptr_t)new) == (((uintptr_t)old) + increment)) ? old :
          (void *)-1;
   }
@@ -1235,6 +1303,46 @@ char *strerror (int errnum)
   }
 
 
+/*===========================================================================
+
+  Time and date 
+
+===========================================================================*/
+/*===========================================================================
+
+  nanosleep 
+
+===========================================================================*/
+int nanosleep (const struct timespec *req, struct timespec *rem)
+  {
+  int r = syscall (SYS_NANOSLEEP, req, rem); 
+  if (r < 0) 
+    {
+    errno = -r;
+    return -1;
+    }
+  else
+    {
+    errno = 0;
+    return r;
+    }
+  }
+
+/*===========================================================================
+
+  sleep 
+
+===========================================================================*/
+unsigned int sleep (unsigned int sec)
+  {
+  unsigned int left = sec;
+  struct timespec ts1 = {1, 0};
+  struct timespec ts2;
+  while (left-- > 0)
+    nanosleep (&ts1, &ts2); 
+
+  return left;
+  }
 
 
 

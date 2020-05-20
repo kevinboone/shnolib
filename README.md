@@ -2,12 +2,13 @@
 
 A demonstration how to create a _very_ simple Linux shell, without a standard
 C library. The file cnolib.c provides (rather crude) implementations of
-the standard library functions that the program needs. cnolib\_amd64.S is
-the assembly-code module that provides the entry point, \_start, which
-calls main(). This module also provides a generic way for the C code
+the standard library functions that the program needs. cnolib\_XXX.S are 
+the assembly-code modules that provides the entry point, \_start, which
+calls main(). These modules also provide a generic way for the C code
 to invoke kernel syscalls. 
-The assembly-code module is specific to the AMD64 (x86-64) architecture. 
-So far as I know, none of the C code is architecture-dependent.
+
+At this time, there are assembly code modules for ARMv7 (e.g., Raspberrry Pi)
+and AMD64 (64-bit Intel and similar).
 
 For more details, please see
 

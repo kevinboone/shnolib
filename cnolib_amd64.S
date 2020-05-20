@@ -6,7 +6,6 @@
 #=============================================================================
 
    .global _start
-   .global sys_brk 
    .global syscall
 
    .text
@@ -29,17 +28,6 @@ _start:
     xor     %rdi, %rdi   # return value, 0
     syscall
 
-#=============================================================================
-# sys_brk
-# We could probably just do this from C -- it's only here because I wasn't
-#  sure it fit the generic syscall conventions; but I think it does
-#=============================================================================
-sys_brk:
-    push %rbp
-    mov $12, %rax  #sys_brk
-    syscall
-    pop %rbp
-    ret
 
 #=============================================================================
 # syscall

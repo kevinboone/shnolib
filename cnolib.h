@@ -70,15 +70,31 @@ struct rusage;
 #define SYS_WRITE       1
 #define SYS_OPEN        2
 #define SYS_CLOSE       3
+#define SYS_BRK         12
 #define SYS_ACCESS      21
 #define SYS_FORK        57
 #define SYS_EXECVE      59 
 #define SYS_EXIT        60
 #define SYS_WAIT4       61
 #define SYS_CHDIR       80
+#define SYS_NANOSLEEP   35
 // TODO add the rest
-// TODO add other architectures
 #endif
+#ifdef __arm__
+#define SYS_READ        3
+#define SYS_WRITE       4
+#define SYS_OPEN        5
+#define SYS_CLOSE       6
+#define SYS_BRK         0x2d
+#define SYS_ACCESS      0x21
+#define SYS_FORK        2
+#define SYS_EXECVE      11
+#define SYS_EXIT        1
+#define SYS_WAIT4       0x72
+#define SYS_CHDIR       12
+#define SYS_NANOSLEEP   162
+#endif
+// TODO add other architectures
 
 // File handling constants
 #define O_RDONLY        00000000
@@ -153,7 +169,7 @@ extern int      sys_read (int fd, const void *, int l);
 extern int      sys_brk (unsigned long brk);
 extern int      sys_open (const char *pathname, int flags,...);
 extern int      sys_close (int fd);
-extern long     syscall (long number,...);
+extern int      syscall (int number,...);
 
 /* Fundamental platform functions */
 extern int      chdir (const char *dir); 
@@ -243,6 +259,21 @@ extern void     perror (const char *message);
 extern char    *strerror (int errnum);
 extern int      sys_nerr;
 extern const char *const sys_errlist[];
+
+/* Time and date */
+
+#ifndef time_t
+typedef long int time_t;
+#endif
+
+struct timespec
+  {
+  time_t tv_sec;
+  long tv_nsec;
+  };
+
+extern int nanosleep (const struct timespec *req, struct timespec *rem);
+extern unsigned int sleep (unsigned int sec);
 
 /* Private and debugging functions */
 
