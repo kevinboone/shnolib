@@ -82,7 +82,7 @@ BOOL do_command (const char *cmdline)
   while (tok)
     {
     myargc++;
-    tok = strtok (NULL, "\t");
+    tok = strtok (NULL, " \t");
     };
 
   free (s);
@@ -98,7 +98,7 @@ BOOL do_command (const char *cmdline)
     {
     myargv[myargc] = strdup (tok);
     myargc++;
-    tok = strtok (NULL, "\t");
+    tok = strtok (NULL, " \t");
     };
   myargv[myargc] = NULL;
   free (s);
