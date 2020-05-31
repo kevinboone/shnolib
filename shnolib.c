@@ -62,6 +62,7 @@ BOOL do_internal_cmd (int argc, char **argv, BOOL *exit)
     for (int i = 1; i < argc; i++)
       {
       fputs (argv[i], stdout);
+      fputs (" ", stdout);
       }
     fputs ("\n", stdout);
     fflush (stdout);

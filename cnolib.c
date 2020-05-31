@@ -336,7 +336,7 @@ char *strnchr (const char *s, int c, size_t n)
   int i = 0;
   for (; *s != '\0' && *s != c && ++i < n; ++s)
     ;
-  return *s == c ? (char *) s : NULL;
+  return *s == c && n ? (char *) s : NULL;
   }
 
 /*===========================================================================
@@ -1005,7 +1005,7 @@ int ferror (FILE *f)
 ===========================================================================*/
 int feof (FILE *f)
   {
-  return f->eof;
+  return f->eof && f->pos == 0;
   }
 
 /*===========================================================================
@@ -1016,58 +1016,71 @@ int feof (FILE *f)
 char *fgets (char *s, int size, FILE *f)
   {
   char *ret = NULL;
-  int done = FALSE;
-  int error = FALSE;
-  int eof = FALSE;
+  
+  BOOL got_newline = FALSE;
   do
     {
+    // First, let's see if we've got a newline in the buffer
+
     char *eol = strnchr ((char *)f->buff, '\n', f->pos); 
     if (eol)
       {
+      // Yes, there's a newline. Shift the buffer down, and
+      //  signal that we're done
       int eoloff = eol - (char *)f->buff + 1;
       int tocopy = eoloff < size - 2 ? eoloff : size - 2; 
       memcpy (s, (char *)f->buff, tocopy); 
-      memmove (f->buff, f->buff + tocopy, BUFSIZ - tocopy);
-      f->pos -= tocopy;
+      int shift_down = eol - (char *)f->buff + 1;
+      memmove (f->buff, f->buff + shift_down, BUFSIZ - shift_down);
+      f->pos -= shift_down; 
+      if (f->pos < 0) f->pos = 0;
       s[tocopy] = 0;
       ret = s;
-      done = TRUE;
+      got_newline = TRUE;
       }
-    else if (eof)
+
+    if (!got_newline)
       {
-      if (f->pos > 0)
+      // We didn't get a newline. Are we at EOF? If so, we will 
+      //  treat whatever is left in the buffer as a line. If there is
+      //  nothing in the buffer, we'll return null 
+      if (f->eof)
         {
-        int eoloff = f->pos; 
-        int tocopy = eoloff < size - 1 ? eoloff : size - 1; 
-        memcpy (s, (char *)f->buff, tocopy); 
-        memmove (f->buff, f->buff + tocopy, tocopy);
-        f->pos -= tocopy;
-        s[tocopy] = 0;
-        ret = s;
+        if (f->pos == 0)
+          {
+          ret = NULL;
+          }
+        else
+          {
+          int eoloff = f->pos; 
+          int tocopy = eoloff < size - 2 ? eoloff : size - 2; 
+          memcpy (s, (char *)f->buff, tocopy); 
+          s[tocopy] = 0;
+          f->pos = 0;
+          ret = s;
+          }
         }
-      else
-        {
-        ret = NULL;
-        f->error = TRUE;
-        f->eof = TRUE;
-        }
-      done = TRUE;
       }
-    else if (!eof)
+
+    if (!got_newline && !f->eof)
       {
+      // We didn't get a newline, and we're not already at EOF. 
+      // So try to fill the buffer, and go around the loop again. 
+      // We might hit EOF doing this
       int tofill = BUFSIZ - f->pos;
       int r = read (f->fd, f->buff + f->pos, tofill); 
       if (r < 0)
         {
-        error = TRUE;
         f->error = TRUE;
+        f->pos = 0;
         ret = NULL;
         }
       else if (r < tofill)
         {
-        // We didn't fill the buffer, but maybe we have a line
+        // We didn't fill the buffer, but maybe we have a line. In any
+        //   case, we're at EOF
         f->pos += r;
-        eof = TRUE;
+        f->eof = TRUE;
         }
       else
         {
@@ -1075,11 +1088,10 @@ char *fgets (char *s, int size, FILE *f)
         f->pos += r;
         }
       }
-    else
-      {
-      done = TRUE;
-      }
-    } while (!done & !error);
+
+    // We don't return until we've either got a newline or we've
+    //  reached end of file, or there has been an error
+    } while (!got_newline && !ferror (f) && !feof (f));
   return ret;
   }
 
